@@ -19,10 +19,12 @@ function onTick()
         radar_rotation = input.getNumber(4),
         radar_unit_gps_location_x = input.getNumber(5),
         radar_unit_gps_location_y = input.getNumber(6),
-        radar_unit_gps_location_z = input.getNumber(7)
+        radar_unit_gps_location_z = input.getNumber(7),
+        radar_lock = input.getBool(1)
     }
-    sendRadarData(1, CHANNEL_ASSIGNMENT.azimuth, CHANNEL_ASSIGNMENT.elevation, CHANNEL_ASSIGNMENT.distance,
-        CHANNEL_ASSIGNMENT.radar_rotation, CHANNEL_ASSIGNMENT.radar_unit_gps_location_x,
-        CHANNEL_ASSIGNMENT.radar_unit_gps_location_y, CHANNEL_ASSIGNMENT.radar_unit_gps_location_z)
-
+    if CHANNEL_ASSIGNMENT.radar_lock then
+        sendRadarData(1, CHANNEL_ASSIGNMENT.azimuth, CHANNEL_ASSIGNMENT.elevation, CHANNEL_ASSIGNMENT.distance,
+            CHANNEL_ASSIGNMENT.radar_rotation, CHANNEL_ASSIGNMENT.radar_unit_gps_location_x,
+            CHANNEL_ASSIGNMENT.radar_unit_gps_location_y, CHANNEL_ASSIGNMENT.radar_unit_gps_location_z)
+    end
 end
