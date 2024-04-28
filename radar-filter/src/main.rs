@@ -12,14 +12,14 @@ use std::ops::{Add, Sub};
 const PI2: f64 = PI * 2.0;
 
 // Angle represented as a number between 0.5 and -0.5
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, PartialOrd)]
 struct Turns(f64);
 
 // Angle represented as a number between pi and -pi
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, PartialOrd)]
 struct Radians(f64);
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, PartialOrd)]
 #[allow(dead_code)]
 struct RawRadarReturn {
     #[serde(rename = "target_index")]
@@ -47,7 +47,7 @@ struct RawRadarReturn {
     pub z: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, PartialOrd)]
 struct RadarReturn {
     pub x: f64,
     pub y: f64,
@@ -74,14 +74,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         s.on(
             "new_radar_data",
             |_s: SocketRef, ack: AckSender, Data::<RawRadarReturn>(target)| {
-                ack.send(target).ok();
+                ack.send(RadarReturn::from(target)).ok();
                 debug!(
                     "New radar return, {:#?} -> {:#?}",
                     target,
                     RadarReturn::from(target)
                 );
             },
-        )
+        );
     });
 
     // make adress
@@ -158,5 +158,36 @@ impl Radians {
 
     pub fn sin(&self) -> f64 {
         self.0.sin()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn simple_return() {
+        let raw = RawRadarReturn {
+            index: 1,
+            dst: 1.0,
+            azm: Turns(0.25),
+            elv: Turns(0.0),
+            r: Turns(0.0),
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+        };
+         
+        let expected = RadarReturn {
+            x: 0.0,
+            y: 1.0,
+            z: 0.0,
+        };
+
+        let actual = RadarReturn::from(raw);
+
+        assert!(actual.x - expected.x <= 6.3e-17);
+        assert!(actual.y - expected.y <= 0.0);
+        assert!(actual.z - expected.z <= 0.0);
     }
 }
