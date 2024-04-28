@@ -1,22 +1,12 @@
-from fastapi import FastAPI, Query
-from fastapi.concurrency import asynccontextmanager
+from fastapi import FastAPI, Query, HTTPException
 from pydantic import BaseModel, Field
-from typing import List, Optional
 import socketio
 import asyncio
-
-import socketio.exceptions
+import logging
 
 app = FastAPI()
-
-
+logger = logging.getLogger("radar_app")
 sio = socketio.AsyncClient()
-message_queue = asyncio.Queue()
-
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    asyncio.create_task(connect_and_handle_reconnect())
 
 
 class RawRadarData(BaseModel):
@@ -41,33 +31,35 @@ class RawRadarData(BaseModel):
 RADAR_DATA_STORE: list[RawRadarData] = []
 
 
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(connect_and_handle_reconnect())
+
+
 async def connect_and_handle_reconnect():
     while True:
         if not sio.connected:
             try:
-                await sio.connect("http://172.28.158.49:5000")
-                print("Connected to Socket.IO server")
-                await handle_queued_messages()
+                await sio.connect("http://172.28.158.49:5000", namespaces=["/"])
+                logger.info("Connected to Socket.IO server")
             except socketio.exceptions.ConnectionError as e:
-                print(f"Failed to connect to Socket.IO server: {e}")
-                await asyncio.sleep(5)  # Wait for 5 seconds before trying to reconnect
+                logger.error(f"Failed to connect to Socket.IO server: {e}")
             except Exception as e:
-                print(f"Unexpected error: {e}")
-                await asyncio.sleep(5)  # General error handling
-        else:
-            await asyncio.sleep(1)  # Sleep if already connected to avoid tight loop
+                logger.error(f"Unexpected error: {e}")
+        await asyncio.sleep(5)
 
 
-async def handle_queued_messages():
-    while not message_queue.empty():
-        data = await message_queue.get()
+async def safe_emit(event, data, namespace="/"):
+    if sio.connected:
         try:
-            await sio.emit("new_radar_data", data.dict())
+            await sio.emit(event, data, namespace=namespace)
+            return True
         except Exception as e:
-            message_queue.put_nowait(
-                data
-            )  # Put the data back at the front of the queue
-            break  # Exit the loop and wait for reconnection to retry
+            logger.error(f"Failed to send data to Socket.IO server: {e}")
+            return False
+    else:
+        logger.warning("Not connected to Socket.IO server.")
+        return False
 
 
 @app.get("/add_radar_raw_data")
@@ -92,30 +84,12 @@ async def add_radar_raw_data(
         radar_unit_gps_location_z=radar_unit_gps_location_z,
     )
     RADAR_DATA_STORE.append(new_radar_data)
-    try:
-        await sio.emit("new_radar_data", new_radar_data.dict(), callback=ack)
-        if message_queue.qsize() > 0:
-            print("Sending queued messages")
-            # If there are messages in the queue, send them all
-            await handle_queued_messages()
-    except Exception as e:
-        message_queue.put_nowait(new_radar_data)  # Add to queue if emit fails
-        return {
-            "notice": "Socket.IO server not connected but the data was stored and will be sent later when connection is restored.",
-            "queue_length": message_queue.qsize(),
-            "data": new_radar_data.dict(),
-        }
-
+    success = await safe_emit("new_radar_data", new_radar_data.dict())
+    if not success:
+        raise HTTPException(
+            status_code=503, detail="Failed to send data to Socket.IO server."
+        )
     return new_radar_data
-
-
-async def ack(data):
-    print("acknowledged", data)
-
-
-@app.get("/queue_length")
-async def get_queue_length():
-    return {"queue_length": message_queue.qsize()}
 
 
 @app.get("/get_radar_all_data")
