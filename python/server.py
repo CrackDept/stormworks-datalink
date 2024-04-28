@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Query
+from fastapi.concurrency import asynccontextmanager
 from pydantic import BaseModel, Field
 from typing import List, Optional
 import socketio
@@ -13,8 +14,8 @@ sio = socketio.AsyncClient()
 message_queue = asyncio.Queue()
 
 
-@app.on_event("startup")
-async def startup_event():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     asyncio.create_task(connect_and_handle_reconnect())
 
 
@@ -42,14 +43,19 @@ RADAR_DATA_STORE: list[RawRadarData] = []
 
 async def connect_and_handle_reconnect():
     while True:
-        try:
-            if not sio.connected:
+        if not sio.connected:
+            try:
                 await sio.connect("http://172.28.158.49:5000")
                 print("Connected to Socket.IO server")
-            await handle_queued_messages()
-        except Exception as e:
-            print(f"Failed to connect to Socket.IO server: {e}")
-            await asyncio.sleep(5)  # Wait for 5 seconds before trying to reconnect
+                await handle_queued_messages()
+            except socketio.exceptions.ConnectionError as e:
+                print(f"Failed to connect to Socket.IO server: {e}")
+                await asyncio.sleep(5)  # Wait for 5 seconds before trying to reconnect
+            except Exception as e:
+                print(f"Unexpected error: {e}")
+                await asyncio.sleep(5)  # General error handling
+        else:
+            await asyncio.sleep(1)  # Sleep if already connected to avoid tight loop
 
 
 async def handle_queued_messages():
@@ -89,6 +95,7 @@ async def add_radar_raw_data(
     try:
         await sio.emit("new_radar_data", new_radar_data.dict(), callback=ack)
         if message_queue.qsize() > 0:
+            print("Sending queued messages")
             # If there are messages in the queue, send them all
             await handle_queued_messages()
     except Exception as e:

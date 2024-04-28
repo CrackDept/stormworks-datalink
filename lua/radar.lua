@@ -1,6 +1,4 @@
-TRACKED_TARGETS = 8
-
-function sendRadarData(target_index, radar_azimuth, radar_elevation, radar_distance, radar_rotation,
+local function sendRadarData(target_index, radar_azimuth, radar_elevation, radar_distance, radar_rotation,
     radar_gps_location_x, radar_gps_location_y, radar_gps_location_z)
 
     -- send request
@@ -12,7 +10,7 @@ function sendRadarData(target_index, radar_azimuth, radar_elevation, radar_dista
 end
 -- Tick function that will be executed every logic tick
 function onTick()
-    CHANNEL_ASSIGNMENT = {
+    local CHANNEL_ASSIGNMENT = {
         distance = input.getNumber(1),
         azimuth = input.getNumber(2),
         elevation = input.getNumber(3),
@@ -22,7 +20,7 @@ function onTick()
         radar_unit_gps_location_z = input.getNumber(7),
         radar_lock = input.getBool(1)
     }
-    if CHANNEL_ASSIGNMENT.radar_lock then
+    if (CHANNEL_ASSIGNMENT.radar_lock == true) then
         sendRadarData(1, CHANNEL_ASSIGNMENT.azimuth, CHANNEL_ASSIGNMENT.elevation, CHANNEL_ASSIGNMENT.distance,
             CHANNEL_ASSIGNMENT.radar_rotation, CHANNEL_ASSIGNMENT.radar_unit_gps_location_x,
             CHANNEL_ASSIGNMENT.radar_unit_gps_location_y, CHANNEL_ASSIGNMENT.radar_unit_gps_location_z)
