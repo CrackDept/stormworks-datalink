@@ -43,7 +43,8 @@ RADAR_DATA_STORE: list[RawRadarData] = []
 async def connect_and_handle_reconnect():
     while True:
         try:
-            await sio.connect("http://172.28.158.49:5000")
+            if not sio.connected:
+                await sio.connect("http://172.28.158.49:5000")
             print("Connected to Socket.IO server")
             await handle_queued_messages()
         except Exception as e:
