@@ -1,7 +1,10 @@
+use axum::handler::Handler;
 use socketioxide::{
-    extract::{AckSender, Data, SocketRef},
+    extract::{AckSender, Data, SocketRef, State},
     SocketIo,
 };
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -54,17 +57,34 @@ struct RadarReturn {
     pub z: f64,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, PartialOrd)]
+struct Target {
+    pub friendly: bool,
+    pub id: u64,
+    pub x: f64,
+    pub y: f64,
+    pub z: f64,
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Set log level
     tracing::subscriber::set_global_default(
         FmtSubscriber::builder()
-            .with_max_level(Level::TRACE)
+            .with_max_level(Level::INFO)
             .finish(),
     )?;
 
     // init socketio
-    let (layer, io) = SocketIo::new_layer();
+    let targets: Vec<Target> = vec![Target {
+        friendly: false,
+        id: 1337,
+        x: 1.0,
+        y: 1.0,
+        z: 1.0,
+    }];
+
+    let (layer, io) = SocketIo::builder().with_state(targets).build_layer();
 
     // listen on root route
     io.ns("/", |s: SocketRef| {
@@ -73,13 +93,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Log new radar returns
         s.on(
             "new_radar_data",
-            |_s: SocketRef, ack: AckSender, Data::<RawRadarReturn>(target)| {
-                ack.send(RadarReturn::from(target)).ok();
-                debug!(
-                    "New radar return, {:#?} -> {:#?}",
-                    target,
-                    RadarReturn::from(target)
-                );
+            |s: SocketRef,
+             ack: AckSender,
+             Data::<RawRadarReturn>(target),
+             targets: State<Vec<Target>>| {
+                let target = RadarReturn::from(target);
+                info!("{:?}", target);
+                ack.send(target).ok();
+
+                s.broadcast().emit("global_targets", targets.0).ok();
             },
         );
     });
@@ -177,7 +199,7 @@ mod test {
             y: 0.0,
             z: 0.0,
         };
-         
+
         let expected = RadarReturn {
             x: 0.0,
             y: 1.0,
