@@ -45,7 +45,7 @@ async def connect_and_handle_reconnect():
         try:
             if not sio.connected:
                 await sio.connect("http://172.28.158.49:5000")
-            print("Connected to Socket.IO server")
+                print("Connected to Socket.IO server")
             await handle_queued_messages()
         except Exception as e:
             print(f"Failed to connect to Socket.IO server: {e}")
