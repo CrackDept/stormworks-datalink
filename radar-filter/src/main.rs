@@ -6,6 +6,10 @@ use tracing::{debug, info, Level};
 use tracing_subscriber::FmtSubscriber;
 
 use serde::{Deserialize, Serialize};
+use std::f64::consts::PI;
+use std::ops::{Add, Sub};
+
+const PI2: f64 = PI * 2.0;
 
 // Angle represented as a number between 0.5 and -0.5
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
@@ -25,13 +29,13 @@ struct RawRadarReturn {
     pub dst: f64,
 
     #[serde(rename = "azimuth")]
-    pub azm: f64,
+    pub azm: Turns,
 
     #[serde(rename = "elevation")]
-    pub elv: f64,
+    pub elv: Turns,
 
     #[serde(rename = "radar_rotation")]
-    pub r: f64,
+    pub r: Turns,
 
     #[serde(rename = "radar_unit_gps_location_x")]
     pub x: f64,
@@ -71,7 +75,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "new_radar_data",
             |_s: SocketRef, ack: AckSender, Data::<RawRadarReturn>(target)| {
                 ack.send(target).ok();
-                debug!("New radar return, {:#?}", target);
+                debug!(
+                    "New radar return, {:#?} -> {:#?}",
+                    target,
+                    RadarReturn::from(target)
+                );
             },
         )
     });
@@ -94,14 +102,61 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 impl From<RawRadarReturn> for RadarReturn {
-    fn from(_raw: RawRadarReturn) -> Self {
+    fn from(raw: RawRadarReturn) -> Self {
+        // Convert to radians
+        let azm: Radians = raw.azm.into();
+        let elv: Radians = raw.elv.into();
+        let rot: Radians = raw.r.into();
 
-        todo!();
+        let azm = azm + rot;
+        let dst = raw.dst;
+
+        let x = azm.cos() * dst;
+        let y = azm.sin() * dst;
+        let z = elv.sin() * dst;
+
+        RadarReturn {
+            x: raw.x + x,
+            y: raw.y + y,
+            z: raw.z + z,
+        }
     }
 }
 
 impl From<Turns> for Radians {
-    fn from(_t: Turns) -> Self {
-        todo!();
+    fn from(t: Turns) -> Self {
+        Self(t.0 * PI2)
+    }
+}
+
+impl From<Radians> for Turns {
+    fn from(r: Radians) -> Self {
+        Self(r.0 / PI2)
+    }
+}
+
+impl Add for Radians {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Radians(rhs.0 + self.0)
+    }
+}
+
+impl Sub for Radians {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Radians(rhs.0 - self.0)
+    }
+}
+
+impl Radians {
+    pub fn cos(&self) -> f64 {
+        self.0.cos()
+    }
+
+    pub fn sin(&self) -> f64 {
+        self.0.sin()
     }
 }
