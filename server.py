@@ -18,7 +18,7 @@ async def add_cors_header(request, call_next):
 
 
 class RawRadarData(BaseModel):
-    index: int = Field(..., description="The index of the radar data.")
+    target_index: int = Field(..., description="The target index of the radar data.")
     distance: float = Field(..., description="The distance from the radar.")
     azimuth: float = Field(..., description="The azimuth angle of the radar.")
     elevation: float = Field(..., description="The elevation angle of the radar.")
@@ -59,7 +59,7 @@ async def add_radar_raw_data(
     ),
 ) -> RawRadarData:
     new_radar_data = RawRadarData(
-        index=index,
+        target_index=target_index,
         distance=distance,
         azimuth=azimuth,
         elevation=elevation,
