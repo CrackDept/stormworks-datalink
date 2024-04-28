@@ -11,7 +11,7 @@
         pkgs = nixpkgs.legacyPackages.${system};
     in {
         devShell = pkgs.mkShell {
-            buildInputs = with pkgs; [ python313 ];
+            buildInputs = with pkgs; [ python313 rustc rustfmt cargo clippy hurl ];
         };
     });
 }
