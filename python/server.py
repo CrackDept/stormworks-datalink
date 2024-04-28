@@ -83,12 +83,13 @@ async def add_radar_raw_data(
         radar_unit_gps_location_y=radar_unit_gps_location_y,
         radar_unit_gps_location_z=radar_unit_gps_location_z,
     )
-    RADAR_DATA_STORE.append(new_radar_data)
     success = await safe_emit("new_radar_data", new_radar_data.dict())
     if not success:
         raise HTTPException(
             status_code=503, detail="Failed to send data to Socket.IO server."
         )
+
+    RADAR_DATA_STORE.append(new_radar_data)
     return new_radar_data
 
 

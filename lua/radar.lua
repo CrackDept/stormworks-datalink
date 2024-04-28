@@ -1,4 +1,4 @@
-local function sendRadarData(target_index, radar_azimuth, radar_elevation, radar_distance, radar_rotation,
+function sendRadarData(target_index, radar_azimuth, radar_elevation, radar_distance, radar_rotation,
     radar_gps_location_x, radar_gps_location_y, radar_gps_location_z)
 
     -- send request
@@ -20,9 +20,19 @@ function onTick()
         radar_unit_gps_location_z = input.getNumber(7),
         radar_lock = input.getBool(1)
     }
-    if (CHANNEL_ASSIGNMENT.radar_lock == true) then
+    -- Check if all the variables have been assigned
+    if CHANNEL_ASSIGNMENT.distance == nil or CHANNEL_ASSIGNMENT.azimuth == nil or CHANNEL_ASSIGNMENT.elevation == nil or
+        CHANNEL_ASSIGNMENT.radar_rotation == nil or CHANNEL_ASSIGNMENT.radar_unit_gps_location_x == nil or
+        CHANNEL_ASSIGNMENT.radar_unit_gps_location_y == nil or CHANNEL_ASSIGNMENT.radar_unit_gps_location_z == nil or
+        CHANNEL_ASSIGNMENT.radar_lock == nil then
+        error("Not all variables have been assigned", 2)
+    end
+    -- Check if the radar lock is true
+    if (CHANNEL_ASSIGNMENT.radar_lock) then
         sendRadarData(1, CHANNEL_ASSIGNMENT.azimuth, CHANNEL_ASSIGNMENT.elevation, CHANNEL_ASSIGNMENT.distance,
             CHANNEL_ASSIGNMENT.radar_rotation, CHANNEL_ASSIGNMENT.radar_unit_gps_location_x,
             CHANNEL_ASSIGNMENT.radar_unit_gps_location_y, CHANNEL_ASSIGNMENT.radar_unit_gps_location_z)
+
     end
+
 end
