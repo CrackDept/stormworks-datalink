@@ -74,15 +74,19 @@ async def add_radar_raw_data(
     radar_unit_gps_location_z: float = Query(...),
 ):
     new_radar_data = RawRadarData(
-        target_index=target_index,
-        distance=distance,
-        azimuth=azimuth,
-        elevation=elevation,
-        radar_rotation=radar_rotation,
-        radar_unit_gps_location_x=radar_unit_gps_location_x,
-        radar_unit_gps_location_y=radar_unit_gps_location_y,
-        radar_unit_gps_location_z=radar_unit_gps_location_z,
+        type_index=target_index,
+        dist=distance,
+        azi=azimuth,
+        ele=elevation,
+        r_r=radar_rotation,
+        r_x=radar_unit_gps_location_x,
+        r_y=radar_unit_gps_location_y,
+        r_z=radar_unit_gps_location_z,
     )
+    if not sio.connected:
+        raise HTTPException(
+            status_code=503, detail="Not connected to Socket.IO server."
+        )
     success = await safe_emit("new_radar_data", new_radar_data.dict())
     if not success:
         raise HTTPException(
