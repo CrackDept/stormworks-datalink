@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 
 .direnv
+lua/cleaned_radar.lua
